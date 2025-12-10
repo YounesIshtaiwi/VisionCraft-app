@@ -1,0 +1,7 @@
+[theme]
+# Colorblind-friendly Streamlit theme
+primaryColor = "#0072B2"           # Blue – accessible for most color deficiencies
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#000000"
+font = "sans serif"
