@@ -25,38 +25,41 @@ def load_font(size):
 # BETTER NUMBER MASK (fixes the 'one red dot' issue)
 # ---------------------------------------------------------
 def generate_number_mask(size, number):
-    # Initial font size estimate
-    font_size = int(size * 0.6)
-    font = load_font(font_size)
+    # Load and scale font
+    base_font_size = int(size * 0.6)
+    font = load_font(base_font_size)
 
-    # Temporary image to measure bounding box
-    temp_img = Image.new("L", (size, size), 255)
-    temp_draw = ImageDraw.Draw(temp_img)
-
-    # Measure bounding box
-    bbox = font.getbbox(number)
+    # Measure bounding box properly
+    bbox = font.getbbox(number)  # (x0, y0, x1, y1)
     text_w = bbox[2] - bbox[0]
     text_h = bbox[3] - bbox[1]
 
-    # If too big, scale down
+    # Adjust font size if too big
     if text_w > size * 0.85:
-        scale_factor = (size * 0.85) / text_w
-        font_size = int(font_size * scale_factor)
-        font = load_font(font_size)
+        scale = (size * 0.85) / text_w
+        new_font_size = int(base_font_size * scale)
+        font = load_font(new_font_size)
         bbox = font.getbbox(number)
         text_w = bbox[2] - bbox[0]
         text_h = bbox[3] - bbox[1]
 
-    # Center the text
-    x = (size - text_w) // 2
-    y = (size - text_h) // 2
+    # --- Correct centering using bbox offset ---
+    # bbox[0] and bbox[1] may be negative depending on font metrics
+    offset_x = bbox[0]
+    offset_y = bbox[1]
 
-    # Final mask image
-    mask_img = Image.new("L", (size, size), 255)
-    mask_draw = ImageDraw.Draw(mask_img)
-    mask_draw.text((x, y), number, font=font, fill=0)
+    # Now compute centered drawing coordinates
+    draw_x = (size - text_w) // 2 - offset_x
+    draw_y = (size - text_h) // 2 - offset_y
 
-    mask_np = np.array(mask_img) < 128
+    # Final mask
+    img = Image.new("L", (size, size), 255)
+    draw = ImageDraw.Draw(img)
+    draw.text((draw_x, draw_y), number, font=font, fill=0)
+
+    # Convert to boolean mask
+    return np.array(img) < 128
+
     return mask_np
 
 
