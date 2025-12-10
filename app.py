@@ -1,3 +1,5 @@
+import os
+print("Current files:", os.listdir())
 import streamlit as st
 from ishihara_generator import generate_ishihara_with_number
 
