@@ -4,49 +4,79 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 
 
-def generate_number_mask(size, number):
-    img = Image.new('L', (size, size), color=255)
-    draw = ImageDraw.Draw(img)
+# ---------------------------------------------------------
+# FONT LOADING (works on Streamlit Cloud + your 'fonts/arial.ttf')
+# ---------------------------------------------------------
+def load_font(size):
     try:
-        font = ImageFont.truetype("fonts/arial.ttf", size * 2 // 3)
-    except IOError:
-        font = ImageFont.load_default()
+        return ImageFont.truetype("fonts/arial.ttf", size)
+    except:
+        # Fallback to system font
+        try:
+            return ImageFont.truetype(
+                "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+                size
+            )
+        except:
+            return ImageFont.load_default()
 
-    temp_img = Image.new('L', (size, size), color=255)
+
+# ---------------------------------------------------------
+# BETTER NUMBER MASK (fixes the 'one red dot' issue)
+# ---------------------------------------------------------
+def generate_number_mask(size, number):
+    # Initial font size estimate
+    font_size = int(size * 0.6)
+    font = load_font(font_size)
+
+    # Temporary image to measure bounding box
+    temp_img = Image.new("L", (size, size), 255)
     temp_draw = ImageDraw.Draw(temp_img)
-    temp_draw.text((0, 0), number, fill=0, font=font)
-    temp_np = np.array(temp_img)
-    ys, xs = np.where(temp_np < 128)
-    if len(xs) == 0 or len(ys) == 0:
-        return np.zeros((size, size), dtype=bool)
-    x_min, x_max = xs.min(), xs.max()
-    y_min, y_max = ys.min(), ys.max()
-    text_width = x_max - x_min
-    text_height = y_max - y_min
-    text_x = (size - text_width) // 2 - x_min
-    text_y = (size - text_height) // 2 - y_min
-    img = Image.new('L', (size, size), color=255)
-    draw = ImageDraw.Draw(img)
-    draw.text((text_x, text_y), number, fill=0, font=font)
-    mask = np.array(img) < 128
-    return mask
+
+    # Measure bounding box
+    bbox = font.getbbox(number)
+    text_w = bbox[2] - bbox[0]
+    text_h = bbox[3] - bbox[1]
+
+    # If too big, scale down
+    if text_w > size * 0.85:
+        scale_factor = (size * 0.85) / text_w
+        font_size = int(font_size * scale_factor)
+        font = load_font(font_size)
+        bbox = font.getbbox(number)
+        text_w = bbox[2] - bbox[0]
+        text_h = bbox[3] - bbox[1]
+
+    # Center the text
+    x = (size - text_w) // 2
+    y = (size - text_h) // 2
+
+    # Final mask image
+    mask_img = Image.new("L", (size, size), 255)
+    mask_draw = ImageDraw.Draw(mask_img)
+    mask_draw.text((x, y), number, font=font, fill=0)
+
+    mask_np = np.array(mask_img) < 128
+    return mask_np
 
 
+# ---------------------------------------------------------
+# MAIN GENERATOR
+# ---------------------------------------------------------
 def generate_ishihara_with_number(
         size=500,
-        number='69',
+        number='12',
         radius_range=(4, 8),
         num_dots=2500,
-        spacing_factor=1,
-        number_colors=None,  # list of RGB floats
-        background_colors=None  # list of RGB floats
+        number_colors=None,
+        background_colors=None
 ):
     number_mask = generate_number_mask(size, number)
-    center_x, center_y = size // 2, size // 2
-    max_radius = max(radius_range)
-    radius_limit = size // 2 - max_radius
 
-    # Default palettes if no colors provided
+    center_x, center_y = size // 2, size // 2
+    max_r = max(radius_range)
+    radius_limit = size // 2 - max_r
+
     background_palette = background_colors or [
         [0.2, 0.8, 0.2],
         [0.3, 0.7, 0.3],
@@ -74,12 +104,12 @@ def generate_ishihara_with_number(
         dx = x - center_x
         dy = y - center_y
 
-        if dx ** 2 + dy ** 2 > radius_limit ** 2:
+        if dx*dx + dy*dy > radius_limit * radius_limit:
             attempts += 1
             continue
 
-        too_close = any(
-            (x - px) ** 2 + (y - py) ** 2 < (spacing_factor * (r + pr)) ** 2 for (px, py, pr) in placed_dots)
+        too_close = any((x - px)**2 + (y - py)**2 < (r + pr)**2
+                        for (px, py, pr) in placed_dots)
         if too_close:
             attempts += 1
             continue
@@ -88,7 +118,8 @@ def generate_ishihara_with_number(
 
         color_palette = number_palette if number_mask[y, x] else background_palette
         color = color_palette[np.random.randint(len(color_palette))]
-        ax.add_patch(plt.Circle((x, y), r, color=color, linewidth=0))
+
+        ax.add_patch(plt.Circle((x, y), r, color=color))
 
     ax.set_xlim(0, size)
     ax.set_ylim(0, size)
