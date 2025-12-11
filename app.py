@@ -1,27 +1,24 @@
 import streamlit as st
-from ishihara_generator import generate_ishihara_with_text  # >>> CHANGED: updated import
+from Ishihara_generator import generate_ishihara_with_text
 
 st.set_page_config(
     page_title="VisionCraft: Custom Color Blindness Plates",
     layout="wide"
 )
 
-# --- Left column for title and main controls ---
+# --- Layout columns ---
 left_col, right_col = st.columns([1, 1])
 
 with left_col:
     st.title("VisionCraft: Empowering Experts to Create Custom Color Blindness Tests")
     st.markdown("Create simple Ishihara-style color vision test plates interactively.")
     
-    # --- Choose Plate Mode below the title ---
     mode = st.selectbox("Choose Plate Mode", ["Create New Plate", "Use Ready Plate"])
 
     if mode == "Create New Plate":
 
-        # >>> ADDED: Allow choosing between number or letter
         content_type = st.selectbox("Plate Content Type", ["Number", "Letter"])
 
-        # >>> CHANGED: Input changes depending on content type
         if content_type == "Number":
             content = st.text_input("Enter Number", "12")
         else:
@@ -34,18 +31,18 @@ with left_col:
 
         generate = st.button("Generate Plate")
 
-    elif mode == "Use Ready Plate":
+    else:
         uploaded_file = st.file_uploader("Upload your Ishihara plate image", type=["png","jpg","jpeg"])
 
-# --- Right column for color pickers ---
+# --- Right column: Color pickers ---
 with right_col:
     if mode == "Create New Plate":
-        st.subheader("Number / Letter Dot Colors")  # >>> CHANGED label
+        st.subheader("Number / Letter Dot Colors")
         num_number_colors = st.slider("How many Number/Letter Colors to use?", 1, 6, 3)
         number_colors = []
         for i in range(num_number_colors):
             default = ["#ff6666","#ff9999","#ff3333", "#d44444", "#cc7a7a", "#e60b0b"][i]
-            color = st.color_picker(f"Text Color {i+1}", default)  # >>> CHANGED label
+            color = st.color_picker(f"Text Color {i+1}", default)
             number_colors.append(color)
 
         st.subheader("Background Dot Colors")
@@ -56,11 +53,10 @@ with right_col:
             color = st.color_picker(f"Background Color {i+1}", default)
             background_colors.append(color)
 
-# --- Generate and display the plate ---
+# --- Image generation ---
 if mode == "Create New Plate" and generate:
     with st.spinner("Generating Ishihara plate..."):
 
-        # Convert hex to RGB floats
         def hex_to_rgb_float(hex_color):
             hex_color = hex_color.lstrip('#')
             return [int(hex_color[i:i+2], 16)/255 for i in (0, 2, 4)]
@@ -68,17 +64,15 @@ if mode == "Create New Plate" and generate:
         number_colors_rgb = [hex_to_rgb_float(c) for c in number_colors]
         background_colors_rgb = [hex_to_rgb_float(c) for c in background_colors]
 
-        # >>> CHANGED: Use new function and pass "content"
         buf = generate_ishihara_with_text(
             size=size,
-            text=content,                     # >>> CHANGED
+            text=content,
             radius_range=(min_r, max_r),
             num_dots=num_dots,
             number_colors=number_colors_rgb,
             background_colors=background_colors_rgb
         )
 
-    # Display generated image on left side
     with left_col:
         st.image(buf, caption=f"Ishihara Plate: {content}", use_container_width=True)
 
@@ -91,7 +85,7 @@ if mode == "Create New Plate" and generate:
             mime="image/png"
         )
 
-# --- Display uploaded plate ---
+# --- Upload mode ---
 if mode == "Use Ready Plate" and uploaded_file:
     with left_col:
         st.image(uploaded_file, caption="Uploaded Plate", use_container_width=True)
