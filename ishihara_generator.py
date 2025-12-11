@@ -4,62 +4,64 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 
 # --------------------------------------------------------------
-#  TEXT MASK GENERATOR (robust for deployment)
+#  TEXT MASK GENERATOR (large but safe letter/number)
 # --------------------------------------------------------------
 
 def generate_text_mask(size, text):
     """
-    Generates a centered boolean mask using PIL's default font (always available)
-    and a large canvas for quality scaling.
+    Generates a centered boolean mask where the text fills approx 80–85%
+    of the 2/3 plate diameter—large, readable, but never touching edges.
     """
-    # Use a large temporary canvas for quality, relative to desired final size
+    target_ratio = 2 / 3                # target portion of plate
+    safety_scale = 3.5                 # adjust to make letter bigger/smaller
+
+    target_size = int(size * target_ratio * safety_scale)
+
+    # Large temporary canvas for quality
     canvas = size * 4
-    temp_img = Image.new("L", (canvas, canvas), 255) # 255 = White background
+    temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
 
-    # Use default font, which is guaranteed to be available
-    # We rely on the large canvas and final resizing for quality.
-    font = ImageFont.load_default()
-    
-    fill_color = 0 # Text is drawn with fill=0 (Black foreground)
-
-    # --- Robust Text Sizing and Centering ---
-    # We rely on a system font (if available) for better measuring, otherwise estimate.
-    
-    # Placeholder font size for measurement
-    font_size_guess = canvas // 2
-    
+    # Start with huge font
     try:
-        # Measure bounding box with a system font (if available)
-        # Use a huge size to ensure the text fills the canvas for measurement
-        temp_font_measure = ImageFont.truetype("arial.ttf", font_size_guess)
-        bbox = draw.textbbox((0, 0), text, font=temp_font_measure)
-    except IOError:
-        # Fallback for measuring if no system font is found (less accurate but robust)
-        # Estimate the text bounding box to be about 60% of the canvas
-        bbox = [0, 0, canvas * 0.6, canvas * 0.6] 
-        
+        font = ImageFont.truetype("arial.ttf", canvas)
+    except:
+        font = ImageFont.load_default()
+
+    # Measure bounding box
+    bbox = draw.textbbox((0, 0), text, font=font)
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
 
-    # Center text manually on the large canvas
+    # Compute scale based on max dimension
+    scale = target_size / max(w, h)
+    font_size = max(10, int(canvas * scale))
+
+    # Reload font with correct size
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except:
+        font = ImageFont.load_default()
+
+    # Draw again with scaled font
+    temp_img = Image.new("L", (canvas, canvas), 255)
+    draw = ImageDraw.Draw(temp_img)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    # Center text
     x = (canvas - w) // 2 - bbox[0]
     y = (canvas - h) // 2 - bbox[1]
-    
-    # Draw text using the universal default font
-    draw.text((x, y), text, fill=fill_color, font=font)
-
+    draw.text((x, y), text, fill=0, font=font)
 
     # Downscale to final plate size
     final = temp_img.resize((size, size), Image.LANCZOS)
-    
-    # Create the mask: Pixels < 128 are the dark text pixels (True)
     mask = np.array(final) < 128
 
     return mask
 
 # --------------------------------------------------------------
-#  ISHIHARA PLATE GENERATOR
+#  ISHIHARA PLATE GENERATOR
 # --------------------------------------------------------------
 
 def generate_ishihara_with_text(
@@ -121,10 +123,7 @@ def generate_ishihara_with_text(
         placed.append((x, y, r))
 
         # Select palette based on mask
-        # FIX: The color logic is inverted to resolve the "invisible number" issue
-        palette = background_palette if number_mask[y, x] else number_palette
-
-        # FIX: Define 'color' by randomly selecting from the chosen palette
+        palette = number_palette if number_mask[y, x] else background_palette
         color = palette[np.random.randint(len(palette))]
 
         # Add circle patch
@@ -143,7 +142,7 @@ def generate_ishihara_with_text(
     return buf
 
 # --------------------------------------------------------------
-#  HEX COLOR → RGB CONVERSION
+#  HEX COLOR → RGB CONVERSION
 # --------------------------------------------------------------
 
 def hex_to_rgb_float(hex_color):
