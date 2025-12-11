@@ -5,69 +5,70 @@ import io
 import os
 
 # --------------------------------------------------------------
-#  FONT LOADING FUNCTION (works on Streamlit Cloud)
+#  FONT LOADING (USING arial.ttf IN /streamlit/ FOLDER)
 # --------------------------------------------------------------
+
+FONT_PATH = "streamlit/arial.ttf"   # <-- your uploaded font
 
 def load_font(size):
     """
-    Loads a scalable DejaVu font included with Pillow.
-    Works on Streamlit Cloud (no system fonts needed).
+    Loads your custom Arial font from the streamlit folder.
+    Works on Streamlit Cloud and locally.
     """
     try:
-        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
-        return ImageFont.truetype(font_path, size)
-    except:
+        return ImageFont.truetype(FONT_PATH, size)
+    except Exception as e:
+        print("Font load failed, using default font:", e)
         return ImageFont.load_default()
 
+
 # --------------------------------------------------------------
-#  TEXT MASK GENERATOR
+#  TEXT MASK GENERATOR (original logic preserved)
 # --------------------------------------------------------------
 
 def generate_text_mask(size, text):
-    """
-    Generates a centered boolean mask where the text fills approx 80–85%
-    of the 2/3 plate diameter—large, readable, but never touching edges.
-    """
     target_ratio = 2 / 3
     safety_scale = 3.5
 
     target_size = int(size * target_ratio * safety_scale)
 
+    # Large high-resolution canvas
     canvas = size * 4
     temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
 
-    # Load large font (scalable!)
+    # Load large initial font
     font = load_font(canvas)
 
-    # Measure initial bounding box
+    # Measure
     bbox = draw.textbbox((0, 0), text, font=font)
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
 
-    # Compute scale based on max dimension
+    # Compute scale
     scale = target_size / max(w, h)
     font_size = max(10, int(canvas * scale))
 
-    # Reload font at final size
+    # Load font again with final size
     font = load_font(font_size)
 
-    # Draw properly scaled text
+    # Draw scaled text centered
     temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
 
     bbox = draw.textbbox((0, 0), text, font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-
     x = (canvas - w) // 2 - bbox[0]
     y = (canvas - h) // 2 - bbox[1]
+
     draw.text((x, y), text, fill=0, font=font)
 
-    # Downscale to final mask size
+    # Downscale to final mask
     final = temp_img.resize((size, size), Image.LANCZOS)
     mask = np.array(final) < 128
 
     return mask
+
 
 # --------------------------------------------------------------
 #  ISHIHARA PLATE GENERATOR
@@ -82,9 +83,6 @@ def generate_ishihara_with_text(
     number_colors=None,
     background_colors=None
 ):
-    """
-    Generates an Ishihara-style plate as a PNG in a BytesIO buffer.
-    """
     number_mask = generate_text_mask(size, text)
 
     center_x = center_y = size // 2
@@ -115,10 +113,12 @@ def generate_ishihara_with_text(
         x = np.random.randint(int(r), size - int(r))
         y = np.random.randint(int(r), size - int(r))
 
+        # Plate boundary
         if (x - center_x)**2 + (y - center_y)**2 > radius_limit**2:
             attempts += 1
             continue
 
+        # Prevent overlap
         if any((x - px)**2 + (y - py)**2 < (spacing_factor * (r + pr))**2
                for px, py, pr in placed):
             attempts += 1
@@ -128,7 +128,6 @@ def generate_ishihara_with_text(
 
         palette = number_palette if number_mask[y, x] else background_palette
         color = palette[np.random.randint(len(palette))]
-
         ax.add_patch(plt.Circle((x, y), r, color=color))
 
     ax.set_xlim(0, size)
@@ -144,10 +143,11 @@ def generate_ishihara_with_text(
 
 
 # --------------------------------------------------------------
-#  HEX → RGB FLOAT
+#  HEX TO RGB
 # --------------------------------------------------------------
 
 def hex_to_rgb_float(hex_color):
     hex_color = hex_color.lstrip('#')
     return [int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4)]
+
 
