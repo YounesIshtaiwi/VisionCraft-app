@@ -8,7 +8,7 @@ def generate_number_mask(size, number):
     img = Image.new('L', (size, size), color=255)
     draw = ImageDraw.Draw(img)
     try:
-        font = ImageFont.truetype("arial.ttf", size * 2 // 3)
+        font = ImageFont.truetype("fonts/arial.ttf", size * 2 // 3)
     except IOError:
         font = ImageFont.load_default()
 
