@@ -1,5 +1,5 @@
 import streamlit as st
-from Ishihara_generator import generate_ishihara_with_text  # >>> CHANGED: updated import
+from ishihara_generator import generate_ishihara_with_text  # >>> CHANGED: updated import
 
 st.set_page_config(
     page_title="VisionCraft: Custom Color Blindness Plates",
