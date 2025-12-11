@@ -24,7 +24,7 @@ def generate_text_mask(size, text):
 
     # Start with huge font
     try:
-        font = ImageFont.truetype("arial.ttf", canvas)
+        font = ImageFont.truetype("fonts/arial.ttf", canvas)
     except:
         font = ImageFont.load_default()
 
