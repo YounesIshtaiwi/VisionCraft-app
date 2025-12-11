@@ -10,7 +10,7 @@ import os
 
 import streamlit as st
 
-FONT_PATH = "streamlit/arial.ttf"
+FONT_PATH = "streamlit/DejaVuSans.ttf"
 
 def load_font(size):
     try:
