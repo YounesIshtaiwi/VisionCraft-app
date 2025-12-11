@@ -8,18 +8,17 @@ import os
 #  FONT LOADING (USING arial.ttf IN /streamlit/ FOLDER)
 # --------------------------------------------------------------
 
-FONT_PATH = "streamlit/arial.ttf"   # <-- your uploaded font
+FONT_PATH = "streamlit/arial.ttf"
 
 def load_font(size):
-    """
-    Loads your custom Arial font from the streamlit folder.
-    Works on Streamlit Cloud and locally.
-    """
     try:
-        return ImageFont.truetype(FONT_PATH, size)
+        font = ImageFont.truetype(FONT_PATH, size)
+        print("✔ Loaded font at:", FONT_PATH, "size:", size)
+        return font
     except Exception as e:
-        print("Font load failed, using default font:", e)
+        print("❌ Failed to load font:", e)
         return ImageFont.load_default()
+
 
 
 # --------------------------------------------------------------
