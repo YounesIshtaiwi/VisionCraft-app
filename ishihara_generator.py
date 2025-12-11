@@ -13,7 +13,7 @@ def generate_text_mask(size, text):
     of the 2/3 plate diameter—large, readable, but never touching edges.
     """
     target_ratio = 2 / 3                # target portion of plate
-    safety_scale = 100                 # adjust to make letter bigger/smaller
+    safety_scale = 3.5                 # adjust to make letter bigger/smaller
 
     target_size = int(size * target_ratio * safety_scale)
 
