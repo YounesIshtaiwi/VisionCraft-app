@@ -5,7 +5,22 @@ import io
 import os
 
 # --------------------------------------------------------------
-#  TEXT MASK GENERATOR (large but safe letter/number)
+#  FONT LOADING FUNCTION (works on Streamlit Cloud)
+# --------------------------------------------------------------
+
+def load_font(size):
+    """
+    Loads a scalable DejaVu font included with Pillow.
+    Works on Streamlit Cloud (no system fonts needed).
+    """
+    try:
+        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
+        return ImageFont.truetype(font_path, size)
+    except:
+        return ImageFont.load_default()
+
+# --------------------------------------------------------------
+#  TEXT MASK GENERATOR
 # --------------------------------------------------------------
 
 def generate_text_mask(size, text):
@@ -13,26 +28,19 @@ def generate_text_mask(size, text):
     Generates a centered boolean mask where the text fills approx 80–85%
     of the 2/3 plate diameter—large, readable, but never touching edges.
     """
-    target_ratio = 2 / 3                # target portion of plate
-    safety_scale = 3.5                 # adjust to make letter bigger/smaller
+    target_ratio = 2 / 3
+    safety_scale = 3.5
 
     target_size = int(size * target_ratio * safety_scale)
 
-    # Large temporary canvas for quality
     canvas = size * 4
     temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
 
-    # Start with huge font
-    def load_font(size):
-    try:
-        # Use PIL’s built-in DejaVu font – works on Streamlit Cloud
-        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
-        return ImageFont.truetype(font_path, size)
-    except:
-        return ImageFont.load_default()
+    # Load large font (scalable!)
+    font = load_font(canvas)
 
-    # Measure bounding box
+    # Measure initial bounding box
     bbox = draw.textbbox((0, 0), text, font=font)
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
@@ -41,27 +49,21 @@ def generate_text_mask(size, text):
     scale = target_size / max(w, h)
     font_size = max(10, int(canvas * scale))
 
-    # Reload font with correct size
-    def load_font(size):
-    try:
-        # Use PIL’s built-in DejaVu font – works on Streamlit Cloud
-        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
-        return ImageFont.truetype(font_path, size)
-    except:
-        return ImageFont.load_default()
+    # Reload font at final size
+    font = load_font(font_size)
 
-    # Draw again with scaled font
+    # Draw properly scaled text
     temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
+
     bbox = draw.textbbox((0, 0), text, font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
 
-    # Center text
     x = (canvas - w) // 2 - bbox[0]
     y = (canvas - h) // 2 - bbox[1]
     draw.text((x, y), text, fill=0, font=font)
 
-    # Downscale to final plate size
+    # Downscale to final mask size
     final = temp_img.resize((size, size), Image.LANCZOS)
     mask = np.array(final) < 128
 
@@ -85,12 +87,10 @@ def generate_ishihara_with_text(
     """
     number_mask = generate_text_mask(size, text)
 
-    # Circle boundary geometry
     center_x = center_y = size // 2
     max_r = max(radius_range)
     radius_limit = size // 2 - max_r
 
-    # Default palettes
     background_palette = background_colors or [
         [0.2, 0.8, 0.2],
         [0.3, 0.7, 0.3],
@@ -110,18 +110,15 @@ def generate_ishihara_with_text(
     attempts = 0
     max_attempts = num_dots * 10
 
-    # Dot placement loop
     while len(placed) < num_dots and attempts < max_attempts:
         r = np.random.uniform(*radius_range)
         x = np.random.randint(int(r), size - int(r))
         y = np.random.randint(int(r), size - int(r))
 
-        # Respect circular plate boundary
         if (x - center_x)**2 + (y - center_y)**2 > radius_limit**2:
             attempts += 1
             continue
 
-        # Prevent overlapping dots
         if any((x - px)**2 + (y - py)**2 < (spacing_factor * (r + pr))**2
                for px, py, pr in placed):
             attempts += 1
@@ -129,18 +126,15 @@ def generate_ishihara_with_text(
 
         placed.append((x, y, r))
 
-        # Select palette based on mask
         palette = number_palette if number_mask[y, x] else background_palette
         color = palette[np.random.randint(len(palette))]
 
-        # Add circle patch
         ax.add_patch(plt.Circle((x, y), r, color=color))
 
     ax.set_xlim(0, size)
     ax.set_ylim(0, size)
     ax.invert_yaxis()
 
-    # Export to buffer
     buf = io.BytesIO()
     plt.savefig(buf, format="png", bbox_inches="tight", pad_inches=0)
     plt.close()
@@ -148,13 +142,12 @@ def generate_ishihara_with_text(
 
     return buf
 
+
 # --------------------------------------------------------------
-#  HEX COLOR → RGB CONVERSION
+#  HEX → RGB FLOAT
 # --------------------------------------------------------------
 
 def hex_to_rgb_float(hex_color):
-    """
-    Converts a hex string to an RGB float list [0-1].
-    """
     hex_color = hex_color.lstrip('#')
     return [int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4)]
+
