@@ -8,16 +8,19 @@ import os
 #  FONT LOADING (USING arial.ttf IN /streamlit/ FOLDER)
 # --------------------------------------------------------------
 
+import streamlit as st
+
 FONT_PATH = "streamlit/arial.ttf"
 
 def load_font(size):
     try:
         font = ImageFont.truetype(FONT_PATH, size)
-        print("✔ Loaded font at:", FONT_PATH, "size:", size)
+        st.write("✔ Font loaded:", FONT_PATH, "size:", size)
         return font
     except Exception as e:
-        print("❌ Failed to load font:", e)
+        st.write("❌ FONT FAILED:", e)
         return ImageFont.load_default()
+
 
 
 
