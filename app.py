@@ -1,5 +1,5 @@
 import streamlit as st
-from ishihara_generator import generate_ishihara_with_text 
+from Ishihara_generator import generate_ishihara_with_text  # >>> CHANGED: updated import
 
 st.set_page_config(
     page_title="VisionCraft: Custom Color Blindness Plates",
@@ -18,10 +18,10 @@ with left_col:
 
     if mode == "Create New Plate":
 
-        # ADDED: Allow choosing between number or letter
+        # >>> ADDED: Allow choosing between number or letter
         content_type = st.selectbox("Plate Content Type", ["Number", "Letter"])
 
-        # CHANGED: Input changes depending on content type
+        # >>> CHANGED: Input changes depending on content type
         if content_type == "Number":
             content = st.text_input("Enter Number", "12")
         else:
@@ -40,12 +40,12 @@ with left_col:
 # --- Right column for color pickers ---
 with right_col:
     if mode == "Create New Plate":
-        st.subheader("Number / Letter Dot Colors")
+        st.subheader("Number / Letter Dot Colors")  # >>> CHANGED label
         num_number_colors = st.slider("How many Number/Letter Colors to use?", 1, 6, 3)
         number_colors = []
         for i in range(num_number_colors):
             default = ["#ff6666","#ff9999","#ff3333", "#d44444", "#cc7a7a", "#e60b0b"][i]
-            color = st.color_picker(f"Text Color {i+1}", default)
+            color = st.color_picker(f"Text Color {i+1}", default)  # >>> CHANGED label
             number_colors.append(color)
 
         st.subheader("Background Dot Colors")
@@ -68,10 +68,10 @@ if mode == "Create New Plate" and generate:
         number_colors_rgb = [hex_to_rgb_float(c) for c in number_colors]
         background_colors_rgb = [hex_to_rgb_float(c) for c in background_colors]
 
-        # CHANGED: Use new function and pass "content"
+        # >>> CHANGED: Use new function and pass "content"
         buf = generate_ishihara_with_text(
             size=size,
-            text=content,
+            text=content,                     # >>> CHANGED
             radius_range=(min_r, max_r),
             num_dots=num_dots,
             number_colors=number_colors_rgb,
