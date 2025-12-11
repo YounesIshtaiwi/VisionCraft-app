@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 import io
+import os
 
 # --------------------------------------------------------------
 #  TEXT MASK GENERATOR (large but safe letter/number)
@@ -23,10 +24,13 @@ def generate_text_mask(size, text):
     draw = ImageDraw.Draw(temp_img)
 
     # Start with huge font
+    def load_font(size):
     try:
-        font = ImageFont.truetype("arial.ttf", canvas)
+        # Use PIL’s built-in DejaVu font – works on Streamlit Cloud
+        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
+        return ImageFont.truetype(font_path, size)
     except:
-        font = ImageFont.load_default()
+        return ImageFont.load_default()
 
     # Measure bounding box
     bbox = draw.textbbox((0, 0), text, font=font)
@@ -38,10 +42,13 @@ def generate_text_mask(size, text):
     font_size = max(10, int(canvas * scale))
 
     # Reload font with correct size
+    def load_font(size):
     try:
-        font = ImageFont.truetype("arial.ttf", font_size)
+        # Use PIL’s built-in DejaVu font – works on Streamlit Cloud
+        font_path = os.path.join(os.path.dirname(ImageFont.__file__), "DejaVuSans-Bold.ttf")
+        return ImageFont.truetype(font_path, size)
     except:
-        font = ImageFont.load_default()
+        return ImageFont.load_default()
 
     # Draw again with scaled font
     temp_img = Image.new("L", (canvas, canvas), 255)
