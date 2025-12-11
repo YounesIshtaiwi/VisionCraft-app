@@ -2,15 +2,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image, ImageDraw, ImageFont
 import io
-import os
-
-# --------------------------------------------------------------
-#  FONT LOADING (USING arial.ttf IN /streamlit/ FOLDER)
-# --------------------------------------------------------------
-
 import streamlit as st
 
-FONT_PATH = "streamlit/LiberationSans.ttf"
+# -----------------------------
+# FONT SETUP
+# -----------------------------
+FONT_PATH = "streamlit/OpenSans-Regular.ttf"
 
 def load_font(size):
     try:
@@ -21,61 +18,48 @@ def load_font(size):
         st.write("❌ FONT FAILED:", e)
         return ImageFont.load_default()
 
-
-
-
 # --------------------------------------------------------------
-#  TEXT MASK GENERATOR (original logic preserved)
+#  TEXT MASK GENERATOR
 # --------------------------------------------------------------
-
 def generate_text_mask(size, text):
+    """
+    Generates a boolean mask with the text centered.
+    """
     target_ratio = 2 / 3
     safety_scale = 3.5
-
     target_size = int(size * target_ratio * safety_scale)
 
-    # Large high-resolution canvas
     canvas = size * 4
     temp_img = Image.new("L", (canvas, canvas), 255)
     draw = ImageDraw.Draw(temp_img)
 
-    # Load large initial font
     font = load_font(canvas)
-
-    # Measure
-    bbox = draw.textbbox((0, 0), text, font=font)
-    w = bbox[2] - bbox[0]
-    h = bbox[3] - bbox[1]
-
-    # Compute scale
-    scale = target_size / max(w, h)
-    font_size = max(10, int(canvas * scale))
-
-    # Load font again with final size
-    font = load_font(font_size)
-
-    # Draw scaled text centered
-    temp_img = Image.new("L", (canvas, canvas), 255)
-    draw = ImageDraw.Draw(temp_img)
 
     bbox = draw.textbbox((0, 0), text, font=font)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+    scale = target_size / max(w, h)
+    font_size = max(10, int(canvas * scale))
+
+    font = load_font(font_size)
+
+    temp_img = Image.new("L", (canvas, canvas), 255)
+    draw = ImageDraw.Draw(temp_img)
+    bbox = draw.textbbox((0, 0), text, font=font)
+    w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+
     x = (canvas - w) // 2 - bbox[0]
     y = (canvas - h) // 2 - bbox[1]
-
     draw.text((x, y), text, fill=0, font=font)
 
-    # Downscale to final mask
     final = temp_img.resize((size, size), Image.LANCZOS)
     mask = np.array(final) < 128
 
     return mask
 
-
 # --------------------------------------------------------------
 #  ISHIHARA PLATE GENERATOR
 # --------------------------------------------------------------
-
 def generate_ishihara_with_text(
     size=500,
     text='69',
@@ -115,12 +99,10 @@ def generate_ishihara_with_text(
         x = np.random.randint(int(r), size - int(r))
         y = np.random.randint(int(r), size - int(r))
 
-        # Plate boundary
         if (x - center_x)**2 + (y - center_y)**2 > radius_limit**2:
             attempts += 1
             continue
 
-        # Prevent overlap
         if any((x - px)**2 + (y - py)**2 < (spacing_factor * (r + pr))**2
                for px, py, pr in placed):
             attempts += 1
@@ -130,6 +112,7 @@ def generate_ishihara_with_text(
 
         palette = number_palette if number_mask[y, x] else background_palette
         color = palette[np.random.randint(len(palette))]
+
         ax.add_patch(plt.Circle((x, y), r, color=color))
 
     ax.set_xlim(0, size)
@@ -143,11 +126,9 @@ def generate_ishihara_with_text(
 
     return buf
 
-
 # --------------------------------------------------------------
-#  HEX TO RGB
+# HEX → RGB FLOAT
 # --------------------------------------------------------------
-
 def hex_to_rgb_float(hex_color):
     hex_color = hex_color.lstrip('#')
     return [int(hex_color[i:i+2], 16) / 255 for i in (0, 2, 4)]
