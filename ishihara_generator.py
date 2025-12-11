@@ -4,6 +4,11 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 import streamlit as st
 
+import os
+st.write("Current directory:", os.getcwd())
+st.write("Files in streamlit folder:", os.listdir("streamlit"))
+st.write("Font exists?", os.path.isfile("streamlit/OpenSans-Regular.ttf"))
+
 # -----------------------------
 # FONT SETUP
 # -----------------------------
