@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 import io
 
 # --------------------------------------------------------------
-#  TEXT MASK GENERATOR (robust for deployment)
+#  TEXT MASK GENERATOR (robust for deployment)
 # --------------------------------------------------------------
 
 def generate_text_mask(size, text):
@@ -17,33 +17,32 @@ def generate_text_mask(size, text):
     temp_img = Image.new("L", (canvas, canvas), 255) # 255 = White background
     draw = ImageDraw.Draw(temp_img)
 
-    # Use default font, which is guaranteed to be available, with a large initial size
-    # Note: load_default often ignores the size argument, but we will rely on
-    # the canvas size and final resizing for quality.
-    font_size = canvas // 2 # A huge size to ensure text fills the canvas
+    # Use default font, which is guaranteed to be available
+    # We rely on the large canvas and final resizing for quality.
     font = ImageFont.load_default()
     
-    # Text is drawn with fill=0 (Black foreground)
-    fill_color = 0
+    fill_color = 0 # Text is drawn with fill=0 (Black foreground)
 
-    # Draw the text at the center of the large canvas (approximation, requires a large canvas)
-    # Get the bounding box of the text to center it accurately
-    # Since load_default might not support textbbox, we must estimate.
-    # For robustness, we will use a simpler text size based on an arbitrary ratio
+    # --- Robust Text Sizing and Centering ---
+    # We rely on a system font (if available) for better measuring, otherwise estimate.
     
-    # We use a placeholder font measurement to calculate size for centering
+    # Placeholder font size for measurement
+    font_size_guess = canvas // 2
+    
     try:
-        # Measure bounding box with a system font (if available) for better centering
-        temp_font_measure = ImageFont.truetype("arial.ttf", canvas // 2)
+        # Measure bounding box with a system font (if available)
+        # Use a huge size to ensure the text fills the canvas for measurement
+        temp_font_measure = ImageFont.truetype("arial.ttf", font_size_guess)
         bbox = draw.textbbox((0, 0), text, font=temp_font_measure)
     except IOError:
-        # Fallback for measuring if no system font is found (less accurate)
-        bbox = [0, 0, canvas * 0.5, canvas * 0.5] # Estimate half the canvas size
+        # Fallback for measuring if no system font is found (less accurate but robust)
+        # Estimate the text bounding box to be about 60% of the canvas
+        bbox = [0, 0, canvas * 0.6, canvas * 0.6] 
         
     w = bbox[2] - bbox[0]
     h = bbox[3] - bbox[1]
 
-    # Center text manually using the large canvas
+    # Center text manually on the large canvas
     x = (canvas - w) // 2 - bbox[0]
     y = (canvas - h) // 2 - bbox[1]
     
@@ -60,7 +59,7 @@ def generate_text_mask(size, text):
     return mask
 
 # --------------------------------------------------------------
-#  ISHIHARA PLATE GENERATOR
+#  ISHIHARA PLATE GENERATOR
 # --------------------------------------------------------------
 
 def generate_ishihara_with_text(
@@ -122,12 +121,11 @@ def generate_ishihara_with_text(
         placed.append((x, y, r))
 
         # Select palette based on mask
-        # >>> FIX: INVERTED COLOR LOGIC <<<
-        # If number_mask[y, x] is TRUE (part of the number), use number_palette.
-        # This is the original logic. If the number is invisible, the logic must be wrong 
-        # due to how the mask is created/read. We use background_palette if True.
-        # This reverses the colors, fixing the "invisible number" issue.
+        # FIX: The color logic is inverted to resolve the "invisible number" issue
         palette = background_palette if number_mask[y, x] else number_palette
+
+        # FIX: Define 'color' by randomly selecting from the chosen palette
+        color = palette[np.random.randint(len(palette))]
 
         # Add circle patch
         ax.add_patch(plt.Circle((x, y), r, color=color))
@@ -145,7 +143,7 @@ def generate_ishihara_with_text(
     return buf
 
 # --------------------------------------------------------------
-#  HEX COLOR → RGB CONVERSION (KEEP FOR COMPLETENESS, though unused here)
+#  HEX COLOR → RGB CONVERSION
 # --------------------------------------------------------------
 
 def hex_to_rgb_float(hex_color):
